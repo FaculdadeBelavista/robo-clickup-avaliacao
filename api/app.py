@@ -1,14 +1,11 @@
-# Importa a biblioteca 'os' para ler variáveis de ambiente
+# CÓDIGO DE TESTE - Focado em resolver o problema da avaliação por estrelas
 import os
 from flask import Flask, request, jsonify
 import requests
 
 # --- Início da sua Ficha de Informações ---
 API_TOKEN = os.environ.get("CLICKUP_API_TOKEN") 
-STATUS_EM_ABERTO = "EM ATENDIMENTO"
-STATUS_ENCERRADO = "ENCERRADO"
-PRIORIDADE_URGENTE = 1
-# Adicionamos o ID do seu novo campo de avaliação
+# Verifique se este é o ID correto do seu campo de AVALIAÇÃO (Rating/Emoji)
 ID_CAMPO_AVALIACAO = "ca70dc3d-bae6-4529-bc2b-b762f220d817"
 # --- Fim da sua Ficha de Informações ---
 
@@ -30,41 +27,37 @@ def handle_evaluation():
 
     print(f"Recebido: id_tarefa={task_id}, acao={action}")
 
-    update_url = f"https://api.clickup.com/api/v2/task/{task_id}"
-
-    # Lógica para REABRIR (Problema não resolvido)
-    if action == 'reabrir':
-        payload = { "status": STATUS_EM_ABERTO, "priority": PRIORIDADE_URGENTE }
-        requests.put(update_url, json=payload, headers=headers)
-        
-        comment_payload = {"comment_text": "Chamado reaberto pelo cliente via link no e-mail."}
-        requests.post(f"{update_url}/comment", json=comment_payload, headers=headers)
-        
-        return "Obrigado! Seu chamado foi reaberto e nossa equipe já foi notificada."
-    
-    # Lógica para AVALIAR (Quando o cliente clica na estrela)
-    elif action == 'avaliar':
+    # --- LÓGICA DE TESTE PARA AVALIAR ---
+    if action == 'avaliar':
         nota = request.args.get('nota')
         if not nota:
             return "Erro: Nota não fornecida.", 400
 
-        # Prepara os dados para atualizar o Status e o Campo de Avaliação
+        # Payload de teste: atualiza APENAS o campo personalizado
         payload = {
-            "status": STATUS_ENCERRADO,
             "custom_fields": [
                 {
                     "id": ID_CAMPO_AVALIACAO, 
-                    "value": int(nota) # A MÁGICA: Apenas enviamos o número da nota!
+                    "value": int(nota) # Tenta enviar o número da nota
                 }
             ]
         }
         
         # Envia a requisição para a API do ClickUp
+        update_url = f"https://api.clickup.com/api/v2/task/{task_id}"
         response_update = requests.put(update_url, json=payload, headers=headers)
-        print("Resposta da atualização de avaliação:", response_update.json())
         
-        return f"Obrigado por sua avaliação de {nota} estrela(s)!"
+        # Esta linha é a mais importante. Ela vai imprimir a resposta completa do ClickUp
+        print("--- RESPOSTA DA API DO CLICKUP ---")
+        print(response_update.json())
+        print("---------------------------------")
+        
+        return f"Teste com nota {nota} enviado. Verifique a tarefa no ClickUp e os logs na Vercel."
     
+    # Mantemos a lógica de reabrir para não quebrar o outro botão
+    elif action == 'reabrir':
+        return "Ação 'reabrir' recebida, mas não executada neste teste."
+
     return "Ação desconhecida.", 400
 
 # Esta parte faz o servidor rodar
