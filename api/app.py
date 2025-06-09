@@ -4,12 +4,13 @@ from flask import Flask, request, jsonify
 import requests
 
 # --- Início da sua Ficha de Informações ---
-# AGORA VAMOS LER O TOKEN DE UM LUGAR SEGURO (Vercel Environment Variables)
 API_TOKEN = os.environ.get("CLICKUP_API_TOKEN") 
-
 STATUS_EM_ABERTO = "EM ATENDIMENTO"
 STATUS_ENCERRADO = "ENCERRADO"
 PRIORIDADE_URGENTE = 1
+# Adicionamos o ID do seu novo campo de avaliação
+ID_CAMPO_AVALIACAO = "ca70dc3d-bae6-4529-bc2b-b762f220d817"
+# --- Fim da sua Ficha de Informações ---
 
 
 headers = {
@@ -31,24 +32,38 @@ def handle_evaluation():
 
     update_url = f"https://api.clickup.com/api/v2/task/{task_id}"
 
-    # Lógica para REABRIR (antigo "NÃO")
+    # Lógica para REABRIR (Problema não resolvido)
     if action == 'reabrir':
         payload = { "status": STATUS_EM_ABERTO, "priority": PRIORIDADE_URGENTE }
-        response = requests.put(update_url, json=payload, headers=headers)
-        print("Resposta da API:", response.json())
+        requests.put(update_url, json=payload, headers=headers)
         
         comment_payload = {"comment_text": "Chamado reaberto pelo cliente via link no e-mail."}
         requests.post(f"{update_url}/comment", json=comment_payload, headers=headers)
         
         return "Obrigado! Seu chamado foi reaberto e nossa equipe já foi notificada."
     
-    # Lógica para ENCERRAR (antigo "SIM")
-    elif action == 'encerrar':
-        payload = { "status": STATUS_ENCERRADO }
-        response = requests.put(update_url, json=payload, headers=headers)
-        print("Resposta da API:", response.json())
+    # Lógica para AVALIAR (Quando o cliente clica na estrela)
+    elif action == 'avaliar':
+        nota = request.args.get('nota')
+        if not nota:
+            return "Erro: Nota não fornecida.", 400
 
-        return "Obrigado por sua confirmação! O chamado foi encerrado com sucesso."
+        # Prepara os dados para atualizar o Status e o Campo de Avaliação
+        payload = {
+            "status": STATUS_ENCERRADO,
+            "custom_fields": [
+                {
+                    "id": ID_CAMPO_AVALIACAO, 
+                    "value": int(nota) # A MÁGICA: Apenas enviamos o número da nota!
+                }
+            ]
+        }
+        
+        # Envia a requisição para a API do ClickUp
+        response_update = requests.put(update_url, json=payload, headers=headers)
+        print("Resposta da atualização de avaliação:", response_update.json())
+        
+        return f"Obrigado por sua avaliação de {nota} estrela(s)!"
     
     return "Ação desconhecida.", 400
 
