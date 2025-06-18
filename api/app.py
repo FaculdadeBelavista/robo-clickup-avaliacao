@@ -90,7 +90,7 @@ def handle_evaluation():
         comment_payload = {"comment_text": "Chamado reaberto pelo cliente via link no e-mail."}
         requests.post(f"{task_url}/comment", json=comment_payload, headers=headers)
         
-        return gerar_pagina_resposta("Solicitação Recebida!", "Seu chamado foi reaberto e nossa equipe já foi notificada.")
+        return gerar_pagina_resposta("Seu chamado foi reaberto e nossa equipe já foi notificada.")
     
     # Lógica para AVALIAR
     elif action == 'avaliar':
@@ -107,7 +107,7 @@ def handle_evaluation():
         status_payload = { "status": STATUS_ENCERRADO }
         requests.put(task_url, json=status_payload, headers=headers)
         
-        return gerar_pagina_resposta("Avaliação Recebida!", f"Obrigado por sua avaliação de {nota} estrela(s)! O chamado foi encerrado.")
+        return gerar_pagina_resposta("Avaliação recebida, obrigado!")
     
     return gerar_pagina_resposta("Erro", "Ação desconhecida."), 400
 
