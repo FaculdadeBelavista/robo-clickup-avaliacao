@@ -14,7 +14,7 @@ STATUS_ENCERRADO = "ENCERRADO"
 # Prioridade para o chamado reaberto.
 PRIORIDADE_URGENTE = 1
 # ID do campo personalizado de avaliação no ClickUp.
-ID_CAMPO_AVALIACAO = "41c52161-d702-4c71-9ad8-c0ece9e85e34"
+ID_CAMPO_AVALIACAO = "ae76c408-912b-4954-acf4-aa8d0e61e574"
 # --- Fim da sua Ficha de Informações ---
 
 # Cabeçalhos padrão para todas as requisições à API do ClickUp.
