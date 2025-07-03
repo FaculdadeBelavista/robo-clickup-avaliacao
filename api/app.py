@@ -14,7 +14,8 @@ STATUS_ENCERRADO = "ENCERRADO"
 # Prioridade para o chamado reaberto.
 PRIORIDADE_URGENTE = 1
 # ID do campo personalizado de avaliação no ClickUp.
-ID_CAMPO_AVALIACAO = "ae76c408-912b-4954-acf4-aa8d0e61e574"
+# CORREÇÃO: Usando o ID encontrado na imagem fornecida pelo usuário.
+ID_CAMPO_AVALIACAO = "ae76c408-912b-4954-acf4-aa8d0e61e574" # ID atualizado conforme sua última mensagem
 # --- Fim da sua Ficha de Informações ---
 
 # Cabeçalhos padrão para todas as requisições à API do ClickUp.
@@ -102,6 +103,11 @@ def handle_evaluation():
             print("Erro: Parâmetros id_tarefa ou acao não encontrados na URL.")
             return gerar_pagina_resposta("Erro na Solicitação", "Os parâmetros necessários não foram encontrados na URL."), 400
 
+        # Adicionar verificação do token da API no início
+        if not API_TOKEN:
+            print("Erro: CLICKUP_API_TOKEN não configurado nas variáveis de ambiente.")
+            return gerar_pagina_resposta("Erro de Configuração", "O token da API do ClickUp não foi configurado corretamente. Por favor, verifique as variáveis de ambiente na Vercel."), 500
+
         print(f"Recebido: id_tarefa={task_id}, acao={action}")
 
         # URL base para a tarefa no ClickUp.
@@ -121,7 +127,10 @@ def handle_evaluation():
 
             if response_update.status_code != 200:
                 print(f"Erro ao reabrir tarefa no ClickUp: {response_update.status_code} - {response_update.text}")
-                return gerar_pagina_resposta("Erro", f"Não foi possível reabrir o chamado no ClickUp. Código: {response_update.status_code}"), 500
+                error_message = f"Não foi possível reabrir o chamado no ClickUp. Código: {response_update.status_code}"
+                if response_update.status_code == 401:
+                    error_message += " (Não autorizado - Verifique seu CLICKUP_API_TOKEN e permissões)."
+                return gerar_pagina_resposta("Erro", error_message), 500
 
             # Payload para adicionar um comentário na tarefa.
             comment_payload = {"comment_text": "Chamado reaberto pelo cliente via link no e-mail."}
@@ -136,7 +145,6 @@ def handle_evaluation():
 
             # Retorna a página de confirmação para o cliente.
             print("Gerando página de resposta para reabertura bem-sucedida.")
-            # CORREÇÃO: Adicionando o argumento 'mensagem' que estava faltando.
             return gerar_pagina_resposta("Seu chamado foi reaberto!", "Nossa equipe já foi notificada e dará andamento à sua solicitação.")
 
         # Lógica para AVALIAR o chamado.
@@ -161,9 +169,20 @@ def handle_evaluation():
             response_field = requests.post(field_update_url, json=field_payload, headers=headers)
             print(f"Resposta da atualização do campo: {response_field.status_code} - {response_field.text}")
 
+            # Adicionado para depuração: imprime o corpo da resposta mesmo se for 200
+            if response_field.status_code == 200:
+                print(f"Corpo da resposta de atualização do campo (200 OK): {response_field.text}")
+
+
             if response_field.status_code != 200:
                 print(f"Erro ao atualizar campo de avaliação no ClickUp: {response_field.status_code} - {response_field.text}")
-                return gerar_pagina_resposta("Erro", f"Não foi possível registrar sua avaliação no ClickUp. Código: {response_field.status_code}"), 500
+                error_message = f"Não foi possível registrar sua avaliação no ClickUp. Código: {response_field.status_code}"
+                if response_field.status_code == 401:
+                    error_message += " (Não autorizado - Verifique seu CLICKUP_API_TOKEN e permissões)."
+                # Adicionando um detalhe extra se o corpo da resposta tiver mais informações
+                if response_field.text:
+                    error_message += f" Detalhes: {response_field.text}"
+                return gerar_pagina_resposta("Erro", error_message), 500
 
             # Ação 2: Mudar o status da tarefa para "ENCERRADO".
             status_payload = { "status": STATUS_ENCERRADO }
@@ -172,14 +191,23 @@ def handle_evaluation():
             response_status = requests.put(task_url, json=status_payload, headers=headers)
             print(f"Resposta da atualização de status para encerrado: {response_status.status_code} - {response_status.text}")
 
+            # Adicionado para depuração: imprime o corpo da resposta mesmo se for 200
+            if response_status.status_code == 200:
+                print(f"Corpo da resposta de atualização de status (200 OK): {response_status.text}")
+
+
             if response_status.status_code != 200:
                 print(f"Aviso: Erro ao encerrar tarefa no ClickUp: {response_status.status_code} - {response_status.text}")
-                # Se a avaliação foi registrada, mas o status não mudou, ainda assim é um sucesso parcial.
-                return gerar_pagina_resposta("Avaliação Recebida!", "Obrigado pelo seu feedback. Houve um pequeno problema ao encerrar o chamado, mas sua avaliação foi registrada.")
+                warning_message = "Obrigado pelo seu feedback. Houve um pequeno problema ao encerrar o chamado, mas sua avaliação foi registrada."
+                if response_status.status_code == 401:
+                    warning_message = "Obrigado pelo seu feedback. Sua avaliação foi registrada, mas não foi possível encerrar o chamado devido a um erro de autenticação (401 - Verifique seu CLICKUP_API_TOKEN e permissões)."
+                # Adicionando um detalhe extra se o corpo da resposta tiver mais informações
+                if response_status.text:
+                    warning_message += f" Detalhes: {response_status.text}"
+                return gerar_pagina_resposta("Avaliação Recebida!", warning_message)
 
             # Retorna a página de confirmação para o cliente.
             print("Gerando página de resposta para avaliação bem-sucedida.")
-            # CORREÇÃO: Adicionando o argumento 'mensagem' que estava faltando.
             return gerar_pagina_resposta("Avaliação Recebida!", "Obrigado pelo seu feedback! Seu chamado foi encerrado com sucesso.")
 
         # Caso a ação não seja reconhecida.
